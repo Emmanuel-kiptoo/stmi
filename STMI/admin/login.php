@@ -2,10 +2,9 @@
 session_start();
 require_once '../config/database.php';
 
-// Check if already logged in
-if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
+if (isset($_SESSION['admin_logged_in'])) {
     header('Location: dashboard.php');
-    exit;
+    exit();
 }
 
 $error = '';
@@ -14,132 +13,208 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
     $password = $_POST['password'];
     
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? AND role = 'admin' AND status = 'active'");
-    $stmt->execute([$username]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($user && password_verify($password, $user['password'])) {
-        // Update last login
-        $updateStmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-        $updateStmt->execute([$user['id']]);
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM admin_users WHERE username = ? AND status = 'active'");
+        $stmt->execute([$username]);
+        $admin = $stmt->fetch();
         
-        // Set session
-        $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_id'] = $user['id'];
-        $_SESSION['admin_name'] = $user['full_name'];
-        $_SESSION['admin_role'] = $user['role'];
-        
-        // Redirect to dashboard
-        header('Location: dashboard.php');
-        exit;
-    } else {
-        $error = 'Invalid username or password';
+        if ($admin && password_verify($password, $admin['password_hash'])) {
+            $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_username'] = $admin['username'];
+            $_SESSION['admin_role'] = $admin['role'];
+            $_SESSION['admin_full_name'] = $admin['full_name'];
+            $_SESSION['admin_logged_in'] = true;
+            
+            // Update last login
+            $updateStmt = $pdo->prepare("UPDATE admin_users SET last_login = NOW() WHERE id = ?");
+            $updateStmt->execute([$admin['id']]);
+            
+            // Log activity
+            $logStmt = $pdo->prepare("INSERT INTO admin_logs (user_id, action, ip_address, user_agent) VALUES (?, 'login', ?, ?)");
+            $logStmt->execute([$admin['id'], $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT']]);
+            
+            header('Location: dashboard.php');
+            exit();
+        } else {
+            $error = 'Invalid username or password';
+        }
+    } catch (PDOException $e) {
+        $error = 'Database error: ' . $e->getMessage();
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login - STMI Trust</title>
-    <link rel="stylesheet" href="assets/css/admin.css">
+    <title>Admin Login - Soka Toto Muda Initiative Trust</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .login-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
-        .login-box {
+        
+        .login-container {
             background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
+            overflow: hidden;
         }
-        .login-logo {
+        
+        .login-header {
+            background: linear-gradient(135deg, #0e0c5e 0%, #1a1a8a 100%);
+            color: white;
+            padding: 40px 30px;
             text-align: center;
-            margin-bottom: 30px;
         }
-        .login-logo h2 {
-            color: #333;
-            margin-bottom: 10px;
+        
+        .login-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
         }
-        .login-logo p {
-            color: #666;
+        
+        .login-header p {
+            opacity: 0.9;
+            margin: 0;
         }
+        
+        .login-body {
+            padding: 40px;
+        }
+        
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
-        .form-group label {
+        
+        .form-label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             color: #333;
             font-weight: 500;
         }
-        .form-control {
+        
+        .form-input {
             width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 16px;
+            transition: all 0.3s;
         }
-        .btn-login {
+        
+        .form-input:focus {
+            border-color: #0e0c5e;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(14, 12, 94, 0.1);
+        }
+        
+        .login-btn {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 14px;
+            background: linear-gradient(135deg, #0e0c5e 0%, #1a1a8a 100%);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.3s;
+            transition: all 0.3s;
         }
-        .btn-login:hover {
-            opacity: 0.9;
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(14, 12, 94, 0.2);
         }
-        .error {
-            color: #e74c3c;
-            background: #ffeaea;
-            padding: 10px;
-            border-radius: 5px;
+        
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 6px;
             margin-bottom: 20px;
+            border-left: 4px solid #c33;
+        }
+        
+        .login-footer {
             text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+        }
+        
+        .login-footer a {
+            color: #0e0c5e;
+            text-decoration: none;
+        }
+        
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #0e0c5e;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <div class="login-box">
-            <div class="login-logo">
-                <h2><i class="fas fa-lock"></i> Admin Login</h2>
-                <p>Soka Toto Muda Initiative Trust</p>
+        <div class="login-header">
+            <div class="logo">
+                <i class="fas fa-hands-helping"></i>
             </div>
-            
+            <h1>Admin Panel</h1>
+            <p>Soka Toto Muda Initiative Trust</p>
+        </div>
+        
+        <div class="login-body">
             <?php if ($error): ?>
-                <div class="error"><?php echo htmlspecialchars($error); ?></div>
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
+                </div>
             <?php endif; ?>
             
             <form method="POST" action="">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" class="form-control" required>
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" class="form-input" required 
+                           placeholder="Enter your username">
                 </div>
                 
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" class="form-control" required>
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-input" required 
+                           placeholder="Enter your password">
                 </div>
                 
-                <button type="submit" class="btn-login">
-                    <i class="fas fa-sign-in-alt"></i> Login
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
                 </button>
             </form>
+            
+            <div class="login-footer">
+                <p>For support, contact: <a href="mailto:stmitrust@gmail.com">stmitrust@gmail.com</a></p>
+            </div>
         </div>
     </div>
 </body>

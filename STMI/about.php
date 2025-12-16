@@ -1,4 +1,7 @@
 <?php
+// Add database connection at the top of about.php
+require_once 'config/database.php';
+
 // Get active section from URL or default to first
 $activeSection = isset($_GET['section']) ? $_GET['section'] : 'who-we-are';
 
@@ -30,6 +33,17 @@ $aboutSections = [
         'active' => ($activeSection === 'history')
     ]
 ];
+
+// Fetch team members from database (only active ones)
+if ($activeSection === 'our-team') {
+    $stmt = $pdo->prepare("
+        SELECT * FROM admin_team 
+        WHERE status = 'active'
+        ORDER BY display_order, department, name
+    ");
+    $stmt->execute();
+    $team_members = $stmt->fetchAll();
+}
 ?>
 
 <!DOCTYPE html>
@@ -41,26 +55,6 @@ $aboutSections = [
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="about.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* Who We Are Section Styles */
-        .who-we-are-section {
-            display: <?php echo $activeSection === 'who-we-are' ? 'block' : 'none'; ?>;
-        }
-
-        /* Other sections will be hidden by default */
-        .core-values-section,
-        .our-programs-section,
-        .our-team-section,
-        .history-section {
-            display: none;
-        }
-
-        <?php foreach ($aboutSections as $sectionId => $section): ?>
-            .<?php echo $sectionId; ?>-section {
-                display: <?php echo $section['active'] ? 'block' : 'none'; ?>;
-            }
-        <?php endforeach; ?>
-    </style>
 </head>
 <body>
     <?php include 'topbars.php'; ?>
@@ -115,7 +109,7 @@ $aboutSections = [
         <!-- Main Content Area -->
         <div class="about-content">
             <!-- Who We Are Section -->
-            <div class="who-we-are-section">
+            <div class="who-we-are-section" style="display: <?php echo $activeSection === 'who-we-are' ? 'block' : 'none'; ?>;">
                 <!-- Main Title -->
                 <div class="section-title-main">
                     <div class="section-icon">
@@ -164,8 +158,6 @@ $aboutSections = [
                                 <p><strong>MUDA Program:</strong> Empowering young mothers through creative arts and life skills training</p>
                             </div>
                         </div>
-                        
-                        
                     </div>
 
                     <!-- Column 2: Content -->
@@ -204,14 +196,12 @@ $aboutSections = [
                                 We therefore ensure that no child is left out/behind by exposing them to various activities which suitably fits their abilities. This will enable them become more disciplined, God fearing, cultivate critical thinking, problem solving and finally be holistically self reliant citizens in the society.
                             </p>
                         </div>
-
-                        
                     </div>
                 </div>
             </div>
 
             <!-- Core Values Section -->
-            <div class="core-values-section">
+            <div class="core-values-section" style="display: <?php echo $activeSection === 'core-values' ? 'block' : 'none'; ?>;">
                 <!-- Section Header -->
                 <div class="section-title-main">
                     <div class="section-icon">
@@ -333,7 +323,7 @@ $aboutSections = [
             </div>
 
             <!-- Our Programs Section -->
-            <div class="our-programs-section">
+            <div class="our-programs-section" style="display: <?php echo $activeSection === 'our-programs' ? 'block' : 'none'; ?>;">
                 <!-- Section Header -->
                 <div class="section-title-main">
                     <div class="section-icon">
@@ -580,7 +570,7 @@ $aboutSections = [
             </div>
 
             <!-- Our Team Section -->
-            <div class="our-team-section">
+            <div class="our-team-section" style="display: <?php echo $activeSection === 'our-team' ? 'block' : 'none'; ?>;">
                 <!-- Section Header -->
                 <div class="section-title-main">
                     <div class="section-icon">
@@ -597,151 +587,132 @@ $aboutSections = [
                     <p>Our team comprises passionate professionals, volunteers, and community leaders committed to transforming lives. Each member brings unique skills and experiences that contribute to our holistic approach to child and youth development.</p>
                 </div>
 
-                <!-- Team Grid - 3 Columns -->
-                <div class="team-grid">
-                    <!-- Team Member 1 -->
-                    <div class="team-member">
-                        <div class="member-photo">
-                            <img src="images/team/brian-nathan.jpg" alt="Brian Nathan" class="member-image">
-                            <div class="photo-overlay">
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="member-info">
-                            <h3 class="member-name">Brian Nathan</h3>
-                            <p class="member-role">Founder & Executive Director</p>
-                            <div class="separator"></div>
-                            <p class="member-statement">"My passion for children's welfare stems from my own childhood experiences. I believe every child deserves a chance to discover their God-given talents and reach their full potential."</p>
-                        </div>
-                        <div class="member-tag">
-                            <span class="tag-dot" style="background-color: #0e0c5e;"></span>
-                            <span>Leadership Team</span>
-                        </div>
-                    </div>
+                <!-- Department Filter -->
+                <?php if (!empty($team_members)): ?>
+                <div class="team-departments-filter">
+                    <button class="dept-filter-btn active" data-department="all">All Departments</button>
+                    <?php 
+                    // Get unique departments
+                    $departments = [];
+                    foreach ($team_members as $member) {
+                        $departments[$member['department']] = ucfirst(str_replace('_', ' ', $member['department']));
+                    }
+                    foreach ($departments as $dept => $dept_name): ?>
+                        <button class="dept-filter-btn" data-department="<?php echo $dept; ?>">
+                            <?php echo $dept_name; ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
 
-                    <!-- Team Member 2 -->
-                    <div class="team-member">
-                        <div class="member-photo">
-                            <img src="images/team/grace-muthoni.jpg" alt="Grace Muthoni" class="member-image">
-                            <div class="photo-overlay">
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
+                <!-- Team Grid - Dynamic from Database -->
+                <div class="team-grid-dynamic" id="teamContainer">
+                    <?php if (empty($team_members)): ?>
+                        <div class="no-team-members">
+                            <i class="fas fa-users"></i>
+                            <h3>No Team Members Available</h3>
+                            <p>Our team information is currently being updated. Please check back soon to meet our amazing team.</p>
+                            <a href="contact.php" class="cta-button">
+                                <i class="fas fa-envelope"></i> Contact Us
+                            </a>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($team_members as $member): 
+                            // Get social links
+                            $social_links = $member['social_links'] ? json_decode($member['social_links'], true) : [];
+                            
+                            // Generate initials for placeholder
+                            $initials = '';
+                            $name_parts = explode(' ', $member['name']);
+                            if (count($name_parts) >= 2) {
+                                $initials = strtoupper(substr($name_parts[0], 0, 1) . substr($name_parts[1], 0, 1));
+                            } else {
+                                $initials = strtoupper(substr($member['name'], 0, 2));
+                            }
+                        ?>
+                            <div class="team-member-dynamic" data-department="<?php echo $member['department']; ?>">
+                                <div class="member-photo-dynamic">
+                                    <?php if ($member['photo']): ?>
+                                        <img src="<?php echo htmlspecialchars($member['photo']); ?>" 
+                                             alt="<?php echo htmlspecialchars($member['name']); ?>"
+                                             onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'initials-placeholder\'>' + '<?php echo $initials; ?>' + '</div>';">
+                                    <?php else: ?>
+                                        <div class="initials-placeholder">
+                                            <?php echo $initials; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="photo-overlay-dynamic">
+                                        <?php if (!empty($social_links['linkedin']) || !empty($social_links['twitter']) || !empty($social_links['facebook'])): ?>
+                                            <div class="social-links-dynamic">
+                                                <?php if (!empty($social_links['linkedin'])): ?>
+                                                    <a href="<?php echo htmlspecialchars($social_links['linkedin']); ?>" 
+                                                       target="_blank" 
+                                                       class="social-link-dynamic" 
+                                                       title="LinkedIn">
+                                                        <i class="fab fa-linkedin"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                                <?php if (!empty($social_links['twitter'])): ?>
+                                                    <a href="<?php echo htmlspecialchars($social_links['twitter']); ?>" 
+                                                       target="_blank" 
+                                                       class="social-link-dynamic" 
+                                                       title="Twitter">
+                                                        <i class="fab fa-twitter"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                                <?php if (!empty($social_links['facebook'])): ?>
+                                                    <a href="<?php echo htmlspecialchars($social_links['facebook']); ?>" 
+                                                       target="_blank" 
+                                                       class="social-link-dynamic" 
+                                                       title="Facebook">
+                                                        <i class="fab fa-facebook"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="social-links-dynamic">
+                                                <span style="color: white; font-size: 0.9rem;">No social links</span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                
+                                <div class="member-info-dynamic">
+                                    <h3 class="member-name-dynamic"><?php echo htmlspecialchars($member['name']); ?></h3>
+                                    <p class="member-position-dynamic"><?php echo htmlspecialchars($member['position']); ?></p>
+                                    
+                                    <div class="member-department-dynamic department-<?php echo $member['department']; ?>">
+                                        <i class="fas fa-users"></i>
+                                        <?php echo ucfirst(str_replace('_', ' ', $member['department'])); ?>
+                                    </div>
+                                    
+                                    <?php if (!empty($member['bio'])): ?>
+                                        <p class="member-bio-dynamic">
+                                            <?php echo htmlspecialchars(substr($member['bio'], 0, 120)); ?>
+                                            <?php if (strlen($member['bio']) > 120): ?>...<?php endif; ?>
+                                        </p>
+                                    <?php endif; ?>
+                                    
+                                    <div class="member-contact-dynamic">
+                                        <?php if (!empty($member['email'])): ?>
+                                            <p>
+                                                <i class="fas fa-envelope"></i>
+                                                <?php echo htmlspecialchars($member['email']); ?>
+                                            </p>
+                                        <?php endif; ?>
+                                        
+                                        <?php if (!empty($member['phone'])): ?>
+                                            <p>
+                                                <i class="fas fa-phone"></i>
+                                                <?php echo htmlspecialchars($member['phone']); ?>
+                                            </p>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="member-info">
-                            <h3 class="member-name">Grace Muthoni</h3>
-                            <p class="member-role">Programs Manager</p>
-                            <div class="separator"></div>
-                            <p class="member-statement">"Working with teen mothers has shown me the power of second chances. Every young mother deserves support, skills, and hope for a better future for herself and her child."</p>
-                        </div>
-                        <div class="member-tag">
-                            <span class="tag-dot" style="background-color: #ff9d0b;"></span>
-                            <span>Programs Team</span>
-                        </div>
-                    </div>
-
-                    <!-- Team Member 3 -->
-                    <div class="team-member">
-                        <div class="member-photo">
-                            <img src="images/team/david-omondi.jpg" alt="David Omondi" class="member-image">
-                            <div class="photo-overlay">
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="member-info">
-                            <h3 class="member-name">David Omondi</h3>
-                            <p class="member-role">Sports Coordinator</p>
-                            <div class="separator"></div>
-                            <p class="member-statement">"Sports taught me discipline and teamwork. Through SOKA TOTO, we're not just training athletes; we're building character and future leaders."</p>
-                        </div>
-                        <div class="member-tag">
-                            <span class="tag-dot" style="background-color: #57cc99;"></span>
-                            <span>Sports Team</span>
-                        </div>
-                    </div>
-
-                    <!-- Team Member 4 -->
-                    <div class="team-member">
-                        <div class="member-photo">
-                            <img src="images/team/sarah-wangui.jpg" alt="Sarah Wangui" class="member-image">
-                            <div class="photo-overlay">
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="member-info">
-                            <h3 class="member-name">Sarah Wangui</h3>
-                            <p class="member-role">Creative Arts Director</p>
-                            <div class="separator"></div>
-                            <p class="member-statement">"Art allows children to express what words cannot. Through MUDA, we're unlocking creativity and helping children discover their unique voices and talents."</p>
-                        </div>
-                        <div class="member-tag">
-                            <span class="tag-dot" style="background-color: #ff6b6b;"></span>
-                            <span>Arts Team</span>
-                        </div>
-                    </div>
-
-                    <!-- Team Member 5 -->
-                    <div class="team-member">
-                        <div class="member-photo">
-                            <img src="images/team/peter-kamau.jpg" alt="Peter Kamau" class="member-image">
-                            <div class="photo-overlay">
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="member-info">
-                            <h3 class="member-name">Peter Kamau</h3>
-                            <p class="member-role">Mentorship Lead</p>
-                            <div class="separator"></div>
-                            <p class="member-statement">"Mentorship bridges the gap between potential and achievement. Every child needs someone who believes in them before they can believe in themselves."</p>
-                        </div>
-                        <div class="member-tag">
-                            <span class="tag-dot" style="background-color: #9b59b6;"></span>
-                            <span>Mentorship Team</span>
-                        </div>
-                    </div>
-
-                    <!-- Team Member 6 -->
-                    <div class="team-member">
-                        <div class="member-photo">
-                            <img src="images/team/esther-awuor.jpg" alt="Esther Awuor" class="member-image">
-                            <div class="photo-overlay">
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="member-info">
-                            <h3 class="member-name">Esther Awuor</h3>
-                            <p class="member-role">Psychosocial Support Officer</p>
-                            <div class="separator"></div>
-                            <p class="member-statement">"Mental and emotional well-being is the foundation of all growth. We create safe spaces where children and young mothers can heal, grow, and thrive."</p>
-                        </div>
-                        <div class="member-tag">
-                            <span class="tag-dot" style="background-color: #3498db;"></span>
-                            <span>Support Team</span>
-                        </div>
-                    </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Team Note for Backend -->
@@ -750,7 +721,7 @@ $aboutSections = [
                         <i class="fas fa-database"></i>
                         <div>
                             <h4>Team Management System</h4>
-                            <p>This section is connected to a backend system. Administrators can add, update, or remove team members through the admin panel. Each team member's information is stored in the database and dynamically displayed here.</p>
+                            <p>This section is connected to our backend system. Administrators can add, update, or remove team members through the admin panel. Each team member's information is dynamically loaded from our database.</p>
                         </div>
                     </div>
                 </div>
@@ -774,7 +745,7 @@ $aboutSections = [
             </div>
 
             <!-- Organisation History Section -->
-            <div class="history-section">
+            <div class="history-section" style="display: <?php echo $activeSection === 'history' ? 'block' : 'none'; ?>;">
                 <!-- Section Header -->
                 <div class="section-title-main">
                     <div class="section-icon">
@@ -1052,5 +1023,81 @@ $aboutSections = [
     </main>
     
     <?php include 'footer.php'; ?>
+
+    <script>
+    // Team Department Filtering
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterButtons = document.querySelectorAll('.dept-filter-btn');
+        const teamMembers = document.querySelectorAll('.team-member-dynamic');
+        
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                const department = this.getAttribute('data-department');
+                
+                // Filter team members
+                teamMembers.forEach(member => {
+                    if (department === 'all' || member.getAttribute('data-department') === department) {
+                        member.style.display = 'block';
+                        setTimeout(() => {
+                            member.style.opacity = '1';
+                            member.style.transform = 'translateY(0)';
+                        }, 10);
+                    } else {
+                        member.style.opacity = '0';
+                        member.style.transform = 'translateY(20px)';
+                        setTimeout(() => {
+                            member.style.display = 'none';
+                        }, 300);
+                    }
+                });
+            });
+        });
+        
+        // Initialize team member animations
+        teamMembers.forEach((member, index) => {
+            member.style.opacity = '0';
+            member.style.transform = 'translateY(20px)';
+            member.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            
+            setTimeout(() => {
+                member.style.opacity = '1';
+                member.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+        
+        // Image error handling
+        const teamImages = document.querySelectorAll('.member-photo-dynamic img');
+        teamImages.forEach(img => {
+            img.addEventListener('error', function() {
+                const parent = this.parentElement;
+                const name = this.alt;
+                const nameParts = name.split(' ');
+                let initials = '';
+                
+                if (nameParts.length >= 2) {
+                    initials = nameParts[0].charAt(0) + nameParts[1].charAt(0);
+                } else if (nameParts.length === 1) {
+                    initials = nameParts[0].substring(0, 2);
+                }
+                
+                initials = initials.toUpperCase();
+                
+                const placeholder = document.createElement('div');
+                placeholder.className = 'initials-placeholder';
+                placeholder.textContent = initials;
+                placeholder.style.cssText = 'width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0e0c5e 0%, #ff9d0b 100%); color: white; font-size: 3rem; font-weight: bold;';
+                
+                parent.innerHTML = '';
+                parent.appendChild(placeholder);
+            });
+        });
+    });
+    </script>
 </body>
 </html>
